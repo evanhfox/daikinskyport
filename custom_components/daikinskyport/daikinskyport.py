@@ -14,11 +14,27 @@ from .const import DAIKIN_PERCENT_MULTIPLIER
 logger = logging.getLogger('daikinskyport')
 
 NEXT_SCHEDULE = 1
+_INVALID_TEMP_SENTINELS = (32767, 65535)
+_INVALID_TEMP_MAX = 30000
 
 class ExpiredTokenError(Exception):
     """Raised when Daikin Skyport API returns a code indicating expired credentials."""
 
     pass
+
+
+def _parse_temp(raw_value):
+    """Return raw temperature unless it is an obvious overflow placeholder."""
+    try:
+        if raw_value in _INVALID_TEMP_SENTINELS:
+            return None
+        if raw_value is None:
+            return None
+        if raw_value > _INVALID_TEMP_MAX:
+            return None
+    except TypeError:
+        return None
+    return raw_value
 
 def config_from_file(filename, config=None):
     ''' Small configuration file management function'''
@@ -218,7 +234,9 @@ class DaikinSkyport(object):
         sensors = list()
         thermostat = self.thermostats[index]
         name = thermostat['name']
-        sensors.append({"name": f"{name} Outdoor", "value": thermostat['tempOutdoor'], "type": "temperature"})
+        outdoor_temp = _parse_temp(thermostat.get('tempOutdoor'))
+        if outdoor_temp is not None:
+            sensors.append({"name": f"{name} Outdoor", "value": outdoor_temp, "type": "temperature"})
         sensors.append({"name": f"{name} Outdoor", "value": thermostat['humOutdoor'], "type": "humidity"})
         if "ctOutdoorFanRequestedDemandPercentage" in thermostat:
             sensors.append({"name": f"{name} Outdoor fan", "value": round(thermostat['ctOutdoorFanRequestedDemandPercentage'] / DAIKIN_PERCENT_MULTIPLIER, 1), "type": "demand"})
@@ -227,11 +245,13 @@ class DaikinSkyport(object):
         if "ctOutdoorCoolRequestedDemand" in thermostat:
             sensors.append({"name": f"{name} Outdoor cooling", "value": round(thermostat['ctOutdoorCoolRequestedDemand'] / DAIKIN_PERCENT_MULTIPLIER, 1), "type": "demand"})
         if "ctOutdoorPower" in thermostat:
-            sensors.append({"name": f"{name} Outdoor", "value": thermostat['ctOutdoorPower'] * 10, "type": "power"})
+            sensors.append({"name": f"{name} Outdoor", "value": thermostat['ctOutdoorPower'], "type": "power"})
         if "ctOutdoorFrequencyInPercent" in thermostat:
             sensors.append({"name": f"{name} Outdoor", "value": round(thermostat['ctOutdoorFrequencyInPercent'] / DAIKIN_PERCENT_MULTIPLIER, 1), "type": "frequency_percent"})
         if "tempIndoor" in thermostat:
-            sensors.append({"name": f"{name} Indoor", "value": thermostat['tempIndoor'], "type": "temperature"})
+            indoor_temp = _parse_temp(thermostat.get('tempIndoor'))
+            if indoor_temp is not None:
+                sensors.append({"name": f"{name} Indoor", "value": indoor_temp, "type": "temperature"})
         if "humIndoor" in thermostat:
             sensors.append({"name": f"{name} Indoor", "value": thermostat['humIndoor'], "type": "humidity"})
         if "ctIFCFanRequestedDemandPercent" in thermostat:
@@ -251,7 +271,9 @@ class DaikinSkyport(object):
         if "ctIFCDehumRequestedDemandPercent" in thermostat:
             sensors.append({"name": f"{name} Indoor dehumidifier", "value": round(thermostat['ctIFCDehumRequestedDemandPercent'] / DAIKIN_PERCENT_MULTIPLIER, 1), "type": "demand"})
         if "ctOutdoorAirTemperature" in thermostat:
-            sensors.append({"name": f"{name} Outdoor air", "value": round(((thermostat['ctOutdoorAirTemperature'] / 10) - 32) * 5 / 9, 1), "type": "temperature"})
+            outdoor_air_temp = _parse_temp(thermostat.get('ctOutdoorAirTemperature'))
+            if outdoor_air_temp is not None:
+                sensors.append({"name": f"{name} Outdoor air", "value": round(((outdoor_air_temp / 10) - 32) * 5 / 9, 1), "type": "temperature"})
         if "ctIFCIndoorBlowerAirflow" in thermostat:
             sensors.append({"name": f"{name} Indoor furnace blower", "value": thermostat['ctIFCIndoorBlowerAirflow'], "type": "airflow"})
         if "ctAHCurrentIndoorAirflow" in thermostat:

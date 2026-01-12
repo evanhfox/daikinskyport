@@ -138,10 +138,15 @@ async def async_setup_entry(
     for index in range(len(coordinator.daikinskyport.thermostats)):
         sensors = coordinator.daikinskyport.get_sensors(index)
         for sensor in sensors:
-            if sensor["type"] not in ("temperature", "humidity", "score",
+            if (
+                sensor["type"] not in ("temperature", "humidity", "score",
                                       "ozone", "particle", "VOC", "demand",
                                       "power", "frequency_percent","actual_status",
-                                      "airflow", "fault_code") or sensor["value"] == 127.5 or sensor["value"] == 65535:
+                                      "airflow", "fault_code")
+                or sensor["value"] is None
+                or sensor["value"] == 127.5
+                or sensor["value"] == 65535
+            ):
                 continue
             async_add_entities([DaikinSkyportSensor(coordinator, sensor["name"], sensor["type"], index)], True)
 
@@ -208,5 +213,7 @@ class DaikinSkyportSensor(SensorEntity):
                         continue
                     else:
                         self._state = sensor["value"]
+                elif sensor["value"] is None:
+                    continue
                 elif not sensor["value"] == 65535 and not sensor["value"] == 655350:
                     self._state = sensor["value"]
