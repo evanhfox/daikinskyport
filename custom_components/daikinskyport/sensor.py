@@ -208,5 +208,5 @@ class DaikinSkyportSensor(SensorEntity):
                         continue
                     else:
                         self._state = sensor["value"]
-                elif not sensor["value"] == 65535 and not sensor["value"] == 655350:
+                elif not sensor["value"] == 65535:
                     self._state = sensor["value"]

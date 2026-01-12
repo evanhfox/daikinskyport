@@ -80,7 +80,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await coordinator._async_update_data()
     except ExpiredTokenError as ex:
-        _LOGGER.warn("Unable to refresh auth token.")
+        _LOGGER.warning("Unable to refresh auth token.")
         raise ConfigEntryNotReady("Unable to refresh token.")
     
     if coordinator.daikinskyport.thermostats is None:

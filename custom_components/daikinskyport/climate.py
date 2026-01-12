@@ -440,11 +440,8 @@ class Thermostat(ClimateEntity):
 
     async def async_update(self):
         """Get the latest state from the thermostat."""
-        if self.update_without_throttle:
-            await self.data._async_update_data(no_throttle=True)
-            self.update_without_throttle = False
-        else:
-            await self.data._async_update_data()
+        await self.data._async_update_data()
+        self.update_without_throttle = False
 
         self.thermostat = self.data.daikinskyport.get_thermostat(self.thermostat_index)
         self._cool_setpoint = self.thermostat["cspActive"]
@@ -518,7 +515,7 @@ class Thermostat(ClimateEntity):
         """Return the current fan status."""
         if "ctAHFanCurrentDemandStatus" in self.thermostat and self.thermostat["ctAHFanCurrentDemandStatus"] > 0:
             return STATE_ON
-        return HVACMode.OFF
+        return STATE_OFF
 
     @property
     def fan_mode(self):
@@ -758,13 +755,16 @@ class Thermostat(ClimateEntity):
             low_temp is not None or high_temp is not None
         ):
             self.set_auto_temp_hold(low_temp, high_temp)
+            self._cool_setpoint = high_temp
+            self._heat_setpoint = low_temp
         elif temp is not None:
             self.set_temp_hold(temp)
+            if self.hvac_mode == HVACMode.HEAT:
+                self._heat_setpoint = temp
+            elif self.hvac_mode == HVACMode.COOL:
+                self._cool_setpoint = temp
         else:
             _LOGGER.error("Missing valid arguments for set_temperature in %s", kwargs)
-
-        self._cool_setpoint = high_temp
-        self._heat_setpoint = low_temp
 
 
     def set_humidity(self, humidity):
