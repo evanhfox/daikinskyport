@@ -245,7 +245,9 @@ class DaikinSkyport(object):
         if "ctOutdoorCoolRequestedDemand" in thermostat:
             sensors.append({"name": f"{name} Outdoor cooling", "value": round(thermostat['ctOutdoorCoolRequestedDemand'] / DAIKIN_PERCENT_MULTIPLIER, 1), "type": "demand"})
         if "ctOutdoorPower" in thermostat:
-            sensors.append({"name": f"{name} Outdoor", "value": thermostat['ctOutdoorPower'], "type": "power"})
+            raw_val = thermostat['ctOutdoorPower']
+            if raw_val < 60000:  # Guard against 65535 overflow
+                sensors.append({"name": f"{name} Outdoor", "value": raw_val, "type": "power"})
         if "ctOutdoorFrequencyInPercent" in thermostat:
             sensors.append({"name": f"{name} Outdoor", "value": round(thermostat['ctOutdoorFrequencyInPercent'] / DAIKIN_PERCENT_MULTIPLIER, 1), "type": "frequency_percent"})
         if "tempIndoor" in thermostat:
@@ -283,7 +285,9 @@ class DaikinSkyport(object):
         if thermostat['equipmentStatus'] == 5:
             sensors.append({"name": f"{name} Indoor", "value": 0, "type": "power"})
         elif "ctIndoorPower" in thermostat:
-            sensors.append({"name": f"{name} Indoor", "value": thermostat['ctIndoorPower'] * 0.1, "type": "power"})
+            raw_val = thermostat['ctIndoorPower']
+            if raw_val < 60000:  # Guard against 65535 overflow
+                sensors.append({"name": f"{name} Indoor", "value": raw_val * 0.1, "type": "power"})
 
 
         if self.thermostats[index]['aqOutdoorAvailable']:
