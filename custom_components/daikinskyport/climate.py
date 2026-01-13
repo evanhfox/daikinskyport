@@ -518,7 +518,7 @@ class Thermostat(ClimateEntity):
         """Return the current fan status."""
         if "ctAHFanCurrentDemandStatus" in self.thermostat and self.thermostat["ctAHFanCurrentDemandStatus"] > 0:
             return STATE_ON
-        return HVACMode.OFF
+        return STATE_OFF
 
     @property
     def fan_mode(self):
@@ -725,7 +725,7 @@ class Thermostat(ClimateEntity):
                 FAN_TO_DAIKIN_FAN[fan_mode]
             )
             
-            self._fan_speed = FAN_TO_DAIKIN_FAN[fan_mode]
+            self._fan_speed = DAIKIN_FAN_SPEED_TO_HASS[FAN_TO_DAIKIN_FAN[fan_mode]]
             self.update_without_throttle = True
 
             _LOGGER.debug("Setting fan speed to: %s", self._fan_speed)
@@ -762,9 +762,12 @@ class Thermostat(ClimateEntity):
             self.set_temp_hold(temp)
         else:
             _LOGGER.error("Missing valid arguments for set_temperature in %s", kwargs)
+            return
 
-        self._cool_setpoint = high_temp
-        self._heat_setpoint = low_temp
+        if high_temp is not None:
+            self._cool_setpoint = high_temp
+        if low_temp is not None:
+            self._heat_setpoint = low_temp
 
 
     def set_humidity(self, humidity):

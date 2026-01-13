@@ -6,7 +6,6 @@ from requests.exceptions import RequestException
 from async_timeout import timeout
 from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_NAME
-from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError

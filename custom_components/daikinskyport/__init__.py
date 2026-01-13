@@ -1,6 +1,6 @@
 """Daikin Skyport integration."""
 import os
-from datetime import timedelta
+from datetime import timedelta, datetime
 from async_timeout import timeout
 from requests.exceptions import RequestException
 from typing import Any
@@ -18,7 +18,6 @@ from homeassistant.const import (
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.util import Throttle
 from homeassistant.helpers.json import save_json
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.device_registry import DeviceEntryType
@@ -51,12 +50,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     password: str = entry.data[CONF_PASSWORD]
     try:
         name: str = entry.options[CONF_NAME]
-    except (NameError, KeyError):
+    except KeyError:
         name: str = entry.data[CONF_NAME]
     try: 
         access_token: str = entry.data[CONF_ACCESS_TOKEN]
         refresh_token: str = entry.data[CONF_REFRESH_TOKEN]
-    except (NameError, KeyError):
+    except KeyError:
         _LOGGER.debug("Tokens not in config for Daikin Skyport")
         access_token = ""
         refresh_token = ""
@@ -80,7 +79,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await coordinator._async_update_data()
     except ExpiredTokenError as ex:
-        _LOGGER.warn("Unable to refresh auth token.")
+        _LOGGER.warning("Unable to refresh auth token.")
         raise ConfigEntryNotReady("Unable to refresh token.")
     
     if coordinator.daikinskyport.thermostats is None:
@@ -146,7 +145,7 @@ class DaikinSkyportData:
         self.platforms = []
         try:
             self.name: str = entry.options[CONF_NAME]
-        except (NameError, KeyError):
+        except KeyError:
             self.name: str = entry.data[CONF_NAME]
         self.hass = hass
         self.entry = entry
@@ -157,10 +156,17 @@ class DaikinSkyportData:
             manufacturer=MANUFACTURER,
             name=self.name,
             )
+        self._last_update = None
         
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    async def _async_update_data(self):
+    async def _async_update_data(self, no_throttle=False):
         """Update data via library."""
+        now = datetime.now()
+        if not no_throttle and self._last_update is not None:
+            time_since_update = now - self._last_update
+            if time_since_update < MIN_TIME_BETWEEN_UPDATES:
+                _LOGGER.debug("Throttling update, last update was %s ago", time_since_update)
+                return
+        
         try:
             current = await self.hass.async_add_executor_job(self.daikinskyport.update)
             _LOGGER.debug("Daikin Skyport _async_update_data")
@@ -169,6 +175,7 @@ class DaikinSkyportData:
             await self.async_refresh()
             await self.hass.async_add_executor_job(self.daikinskyport.update)
         _LOGGER.debug("Daikin Skyport data updated successfully")
+        self._last_update = now
         return
 
     async def async_refresh(self) -> bool:

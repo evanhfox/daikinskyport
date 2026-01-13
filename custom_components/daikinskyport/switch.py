@@ -61,7 +61,7 @@ class DaikinSkyportAuxHeat(SwitchEntity):
             self.aux_on = True
             self.schedule_update_ha_state()
         else:
-            raise HomeAssistantError(f"Error {send_command}: Failed to turn on {self._name}")
+            raise HomeAssistantError(f"Failed to turn on {self._name}")
 
     def turn_off(self, **kwargs: Any) -> None:
         """Turn off the switch."""
